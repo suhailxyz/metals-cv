@@ -8,6 +8,26 @@ import MetalCard from '@/components/MetalCard';
 import { MetalItem, MarketPrices } from '@/types/metals';
 import { calculatePortfolioValue, mockMarketPrices, convertToOunces } from '@/utils/metalCalculations';
 
+const METALS_DEV_API_KEY = import.meta.env.VITE_METALS_DEV_API_KEY;
+
+async function fetchMetalRates() {
+  const url = `https://api.metals.dev/v1/latest?api_key=${METALS_DEV_API_KEY}&currency=USD&unit=toz`;
+  console.log('[fetchMetalRates] Fetching:', url);
+  const response = await fetch(url, {
+    headers: {
+      'Accept': 'application/json',
+    },
+  });
+  const result = await response.json();
+  console.log('[fetchMetalRates] Result:', result);
+  return {
+    gold: result.metals.gold,
+    silver: result.metals.silver,
+    platinum: result.metals.platinum,
+    palladium: result.metals.palladium,
+  };
+}
+
 const Index = () => {
   const [metals, setMetals] = useState<MetalItem[]>([
     {
@@ -48,25 +68,33 @@ const Index = () => {
     }
   ]);
 
-  const [marketPrices, setMarketPrices] = useState<MarketPrices>(mockMarketPrices);
+  const [marketPrices, setMarketPrices] = useState<MarketPrices | null>(null);
+  const [isLoadingPrices, setIsLoadingPrices] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editMetal, setEditMetal] = useState<MetalItem | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   // Simulate live price updates
   useEffect(() => {
-    const interval = setInterval(() => {
-      setMarketPrices(prev => ({
-        gold: prev.gold + (Math.random() - 0.5) * 20,
-        silver: prev.silver + (Math.random() - 0.5) * 2,
-        platinum: prev.platinum + (Math.random() - 0.5) * 15,
-        palladium: prev.palladium + (Math.random() - 0.5) * 30
-      }));
-    }, 5000);
-
+    const fetchAndSetPrices = async () => {
+      try {
+        console.log('[useEffect] Fetching live metal prices...');
+        const rates = await fetchMetalRates();
+        setMarketPrices(rates);
+        setIsLoadingPrices(false);
+        console.log('[useEffect] Updated marketPrices:', rates);
+        setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      } catch (e) {
+        console.error('[useEffect] Failed to fetch metal rates', e);
+        setIsLoadingPrices(false);
+      }
+    };
+    fetchAndSetPrices();
+    const interval = setInterval(fetchAndSetPrices, 300000); // 5 minutes
     return () => clearInterval(interval);
   }, []);
 
-  const portfolioStats = calculatePortfolioValue(metals, marketPrices);
+  const portfolioStats = marketPrices ? calculatePortfolioValue(metals, marketPrices) : null;
 
   const handleAddMetal = (newMetal: Omit<MetalItem, 'id'>) => {
     const metal: MetalItem = {
@@ -105,221 +133,237 @@ const Index = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1 text-xs text-gray-300">
               <TrendingUp className="h-3 w-3" />
-              <span>Live Prices (per oz)</span>
+              <span>Live Prices{lastUpdated ? ` (last updated ${lastUpdated})` : ''}</span>
             </div>
-            <div className="flex items-center gap-6 text-sm">
-              <div className="flex items-center gap-2">
-                <span className="text-yellow-400 font-medium">AU</span>
-                <span className="font-mono">${marketPrices.gold.toFixed(2)}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-gray-300 font-medium">AG</span>
-                <span className="font-mono">${marketPrices.silver.toFixed(2)}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-gray-400 font-medium">PT</span>
-                <span className="font-mono">${marketPrices.platinum.toFixed(2)}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-gray-500 font-medium">PD</span>
-                <span className="font-mono">${marketPrices.palladium.toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-          <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2 flex items-center gap-3">
-              <Coins className="h-10 w-10 text-amber-600" />
-              Stack Tracker
-            </h1>
-            <p className="text-lg text-gray-600">Track your precious metals portfolio with live market pricing</p>
-          </div>
-        </div>
-
-        {/* Portfolio Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-amber-500 to-amber-600 text-white border-0 shadow-lg">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium opacity-90">Total Portfolio Value</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">${portfolioStats.totalValue.toLocaleString()}</div>
-              <div className="flex items-center mt-2 text-amber-100">
-                <TrendingUp className="h-4 w-4 mr-1" />
-                <span className="text-sm">Live pricing</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white shadow-lg border-0">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Items</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-gray-900">{portfolioStats.totalItems}</div>
-              <div className="text-sm text-gray-500 mt-2">Across {portfolioStats.uniqueTypes} metal types</div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white shadow-lg border-0">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Weight</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-gray-900">{portfolioStats.totalWeight.toFixed(2)}</div>
-              <div className="text-sm text-gray-500 mt-2">Troy ounces</div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white shadow-lg border-0">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">Unrealized P&L</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className={`text-3xl font-bold ${portfolioStats.unrealizedPL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                ${Math.abs(portfolioStats.unrealizedPL).toLocaleString()}
-              </div>
-              <div className={`text-sm mt-2 ${portfolioStats.unrealizedPL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {portfolioStats.unrealizedPL >= 0 ? '+' : '-'}{((Math.abs(portfolioStats.unrealizedPL) / portfolioStats.totalCost) * 100).toFixed(2)}%
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Portfolio Composition & Breakdown Combined */}
-        <Card className="shadow-lg border-0 mb-8">
-          <CardHeader>
-            <CardTitle>Portfolio Composition</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col lg:flex-row gap-8 items-center lg:items-start">
-              <div className="w-full lg:w-1/2 h-64">
-                <PortfolioChart metals={metals} marketPrices={marketPrices} />
-              </div>
-              <div className="w-full lg:w-1/2">
-                <h2 className="text-xl font-bold mb-4">Breakdown</h2>
-                <div className="space-y-4">
-                  {Object.entries(portfolioStats.byType).map(([type, data]) => (
-                    <div key={type} className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-3 h-3 rounded-full ${
-                          type === 'gold' ? 'bg-yellow-500' :
-                          type === 'silver' ? 'bg-gray-400' :
-                          type === 'platinum' ? 'bg-gray-600' :
-                          'bg-gray-800'
-                        }`} />
-                        <span className="font-medium capitalize">{type}</span>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-bold">${data.value.toLocaleString()}</div>
-                        <div className="text-sm text-gray-500">{data.weight.toFixed(2)} oz</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Inventory List */}
-        <Card className="shadow-lg border-0">
-          <CardHeader>
-            <CardTitle>Your Inventory</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-4">
-              <Button
-                onClick={() => setIsAddDialogOpen(true)}
-                className="bg-amber-600 hover:bg-amber-700 text-white"
-                size="lg"
-              >
-                <PlusCircle className="h-5 w-5 mr-2" />
-                Add Metal
-              </Button>
-            </div>
-            {metals.length === 0 ? (
-              <div className="text-center py-12">
-                <Coins className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No metals in your portfolio</h3>
-                <p className="text-gray-500 mb-4">Start tracking your precious metals collection</p>
-                <Button onClick={() => setIsAddDialogOpen(true)} className="bg-amber-600 hover:bg-amber-700">
-                  Add Your First Metal
-                </Button>
+            {isLoadingPrices || !marketPrices ? (
+              <div className="flex items-center gap-2 text-sm animate-pulse">
+                <span>Loading live prices...</span>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full border-separate border-spacing-y-2">
-                  <thead>
-                    <tr className="bg-slate-100 text-gray-700 text-left">
-                      <th className="px-4 py-2 rounded-l-lg">Metal</th>
-                      <th className="px-4 py-2">Form</th>
-                      <th className="px-4 py-2">Description</th>
-                      <th className="px-4 py-2">Weight</th>
-                      <th className="px-4 py-2">Quantity</th>
-                      <th className="px-4 py-2">Purity</th>
-                      <th className="px-4 py-2">Purchase Date</th>
-                      <th className="px-4 py-2">Purchase Cost</th>
-                      <th className="px-4 py-2">Current Value</th>
-                      <th className="px-4 py-2">P&L</th>
-                      <th className="px-4 py-2 rounded-r-lg"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {metals.map((metal) => {
-                      const currentValue = calculatePortfolioValue([metal], marketPrices).totalValue;
-                      const purchaseCost = calculatePortfolioValue([metal], marketPrices).totalCost;
-                      const gainLoss = currentValue - purchaseCost;
-                      const gainLossPercent = purchaseCost !== 0 ? (gainLoss / purchaseCost) * 100 : 0;
-                      const weightInOz = metal.weightUnit === 'oz' ? metal.weight : convertToOunces(metal.weight, metal.weightUnit);
-                      const metalColors: Record<string, string> = {
-                        gold: 'bg-yellow-400',
-                        silver: 'bg-gray-400',
-                        platinum: 'bg-gray-600',
-                        palladium: 'bg-gray-800',
-                      };
-                      return (
-                        <tr key={metal.id} className="bg-white hover:bg-slate-50 transition rounded-lg shadow-sm">
-                          <td className="px-4 py-2 font-semibold capitalize flex items-center gap-2">
-                            <span className={`inline-block w-3 h-3 rounded-full ${metalColors[metal.type] || 'bg-gray-300'}`}></span>
-                            {metal.type}
-                          </td>
-                          <td className="px-4 py-2"><span className="inline-block bg-slate-100 rounded px-2 py-1 text-xs font-medium text-gray-700">{metal.form}</span></td>
-                          <td className="px-4 py-2 text-gray-600">{metal.description || '-'}</td>
-                          <td className="px-4 py-2">{metal.weight} {metal.weightUnit}<br /><span className="text-xs text-gray-400">({weightInOz.toFixed(3)} oz)</span></td>
-                          <td className="px-4 py-2">{metal.quantity}</td>
-                          <td className="px-4 py-2">{(metal.purity * 100).toFixed(2)}%</td>
-                          <td className="px-4 py-2">{new Date(metal.purchaseDate).toLocaleDateString()}</td>
-                          <td className="px-4 py-2">${purchaseCost.toLocaleString()}</td>
-                          <td className="px-4 py-2 font-bold">${currentValue.toLocaleString()}</td>
-                          <td className={`px-4 py-2 font-medium ${gainLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>{gainLoss >= 0 ? '+' : ''}${gainLoss.toLocaleString()} ({gainLossPercent.toFixed(2)}%)</td>
-                          <td className="px-4 py-2 flex gap-2">
-                            <Button variant="ghost" size="sm" onClick={() => handleEditMetal(metal)}>
-                              <Pencil className="h-4 w-4 text-gray-400 hover:text-amber-600" />
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDeleteMetal(metal.id)}>
-                              <Trash2 className="h-4 w-4 text-gray-400 hover:text-red-600" />
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div className="flex items-center gap-6 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-yellow-400 font-medium">AU</span>
+                  <span className="font-mono">${marketPrices.gold.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-300 font-medium">AG</span>
+                  <span className="font-mono">${marketPrices.silver.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-400 font-medium">PT</span>
+                  <span className="font-mono">${marketPrices.platinum.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-500 font-medium">PD</span>
+                  <span className="font-mono">${marketPrices.palladium.toFixed(2)}</span>
+                </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <AddMetalDialog
-          isOpen={isAddDialogOpen}
-          onClose={() => { setIsAddDialogOpen(false); setEditMetal(null); }}
-          onAdd={handleSaveMetal}
-          {...(editMetal ? { initialData: editMetal } : {})}
-        />
+        {/* Only render main content if prices are loaded */}
+        {isLoadingPrices || !marketPrices ? (
+          <div className="flex flex-col items-center justify-center min-h-[60vh]">
+            <svg className="animate-spin h-10 w-10 text-amber-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>
+            <span className="text-lg text-gray-700">Loading live market data...</span>
+          </div>
+        ) : (
+          <>
+            {/* Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+              <div>
+                <h1 className="text-4xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+                  <Coins className="h-10 w-10 text-amber-600" />
+                  Stack Tracker
+                </h1>
+                <p className="text-lg text-gray-600">Track your precious metals portfolio with live market pricing</p>
+              </div>
+            </div>
+
+            {/* Portfolio Overview Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              <Card className="bg-gradient-to-br from-amber-500 to-amber-600 text-white border-0 shadow-lg">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium opacity-90">Total Portfolio Value</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">${portfolioStats?.totalValue.toLocaleString()}</div>
+                  <div className="flex items-center mt-2 text-amber-100">
+                    <TrendingUp className="h-4 w-4 mr-1" />
+                    <span className="text-sm">Live pricing</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white shadow-lg border-0">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-gray-600">Total Items</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-gray-900">{portfolioStats?.totalItems}</div>
+                  <div className="text-sm text-gray-500 mt-2">Across {portfolioStats?.uniqueTypes} metal types</div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white shadow-lg border-0">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-gray-600">Total Weight</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold text-gray-900">{portfolioStats?.totalWeight.toFixed(2)}</div>
+                  <div className="text-sm text-gray-500 mt-2">Troy ounces</div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white shadow-lg border-0">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-gray-600">Unrealized P&L</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-3xl font-bold ${portfolioStats?.unrealizedPL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    ${Math.abs(portfolioStats?.unrealizedPL).toLocaleString()}
+                  </div>
+                  <div className={`text-sm mt-2 ${portfolioStats?.unrealizedPL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {portfolioStats?.unrealizedPL >= 0 ? '+' : '-'}{((Math.abs(portfolioStats?.unrealizedPL) / portfolioStats?.totalCost) * 100).toFixed(2)}%
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Portfolio Composition & Breakdown Combined */}
+            <Card className="shadow-lg border-0 mb-8">
+              <CardHeader>
+                <CardTitle>Portfolio Composition</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col lg:flex-row gap-8 items-center lg:items-start">
+                  <div className="w-full lg:w-1/2 h-64">
+                    <PortfolioChart metals={metals} marketPrices={marketPrices} />
+                  </div>
+                  <div className="w-full lg:w-1/2">
+                    <h2 className="text-xl font-bold mb-4">Breakdown</h2>
+                    <div className="space-y-4">
+                      {Object.entries(portfolioStats?.byType || {}).map(([type, data]) => (
+                        <div key={type} className="flex justify-between items-center">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-3 h-3 rounded-full ${
+                              type === 'gold' ? 'bg-yellow-500' :
+                              type === 'silver' ? 'bg-gray-400' :
+                              type === 'platinum' ? 'bg-gray-600' :
+                              'bg-gray-800'
+                            }`} />
+                            <span className="font-medium capitalize">{type}</span>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold">${data.value.toLocaleString()}</div>
+                            <div className="text-sm text-gray-500">{data.weight.toFixed(2)} oz</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Inventory List */}
+            <Card className="shadow-lg border-0">
+              <CardHeader>
+                <CardTitle>Your Inventory</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4">
+                  <Button
+                    onClick={() => setIsAddDialogOpen(true)}
+                    className="bg-amber-600 hover:bg-amber-700 text-white"
+                    size="lg"
+                  >
+                    <PlusCircle className="h-5 w-5 mr-2" />
+                    Add Metal
+                  </Button>
+                </div>
+                {metals.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Coins className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">No metals in your portfolio</h3>
+                    <p className="text-gray-500 mb-4">Start tracking your precious metals collection</p>
+                    <Button onClick={() => setIsAddDialogOpen(true)} className="bg-amber-600 hover:bg-amber-700">
+                      Add Your First Metal
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full border-separate border-spacing-y-2">
+                      <thead>
+                        <tr className="bg-slate-100 text-gray-700 text-left">
+                          <th className="px-4 py-2 rounded-l-lg">Metal</th>
+                          <th className="px-4 py-2">Form</th>
+                          <th className="px-4 py-2">Description</th>
+                          <th className="px-4 py-2">Weight</th>
+                          <th className="px-4 py-2">Quantity</th>
+                          <th className="px-4 py-2">Purity</th>
+                          <th className="px-4 py-2">Purchase Date</th>
+                          <th className="px-4 py-2">Purchase Cost</th>
+                          <th className="px-4 py-2">Current Value</th>
+                          <th className="px-4 py-2">P&L</th>
+                          <th className="px-4 py-2 rounded-r-lg"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {metals.map((metal) => {
+                          const currentValue = calculatePortfolioValue([metal], marketPrices).totalValue;
+                          const purchaseCost = calculatePortfolioValue([metal], marketPrices).totalCost;
+                          const gainLoss = currentValue - purchaseCost;
+                          const gainLossPercent = purchaseCost !== 0 ? (gainLoss / purchaseCost) * 100 : 0;
+                          const weightInOz = metal.weightUnit === 'oz' ? metal.weight : convertToOunces(metal.weight, metal.weightUnit);
+                          const metalColors: Record<string, string> = {
+                            gold: 'bg-yellow-400',
+                            silver: 'bg-gray-400',
+                            platinum: 'bg-gray-600',
+                            palladium: 'bg-gray-800',
+                          };
+                          return (
+                            <tr key={metal.id} className="bg-white hover:bg-slate-50 transition rounded-lg shadow-sm">
+                              <td className="px-4 py-2 font-semibold capitalize flex items-center gap-2">
+                                <span className={`inline-block w-3 h-3 rounded-full ${metalColors[metal.type] || 'bg-gray-300'}`}></span>
+                                {metal.type}
+                              </td>
+                              <td className="px-4 py-2"><span className="inline-block bg-slate-100 rounded px-2 py-1 text-xs font-medium text-gray-700">{metal.form}</span></td>
+                              <td className="px-4 py-2 text-gray-600">{metal.description || '-'}</td>
+                              <td className="px-4 py-2">{metal.weight} {metal.weightUnit}<br /><span className="text-xs text-gray-400">({weightInOz.toFixed(3)} oz)</span></td>
+                              <td className="px-4 py-2">{metal.quantity}</td>
+                              <td className="px-4 py-2">{(metal.purity * 100).toFixed(2)}%</td>
+                              <td className="px-4 py-2">{new Date(metal.purchaseDate).toLocaleDateString()}</td>
+                              <td className="px-4 py-2">${purchaseCost.toLocaleString()}</td>
+                              <td className="px-4 py-2 font-bold">${currentValue.toLocaleString()}</td>
+                              <td className={`px-4 py-2 font-medium ${gainLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>{gainLoss >= 0 ? '+' : ''}${gainLoss.toLocaleString()} ({gainLossPercent.toFixed(2)}%)</td>
+                              <td className="px-4 py-2 flex gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => handleEditMetal(metal)}>
+                                  <Pencil className="h-4 w-4 text-gray-400 hover:text-amber-600" />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => handleDeleteMetal(metal.id)}>
+                                  <Trash2 className="h-4 w-4 text-gray-400 hover:text-red-600" />
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <AddMetalDialog
+              isOpen={isAddDialogOpen}
+              onClose={() => { setIsAddDialogOpen(false); setEditMetal(null); }}
+              onAdd={handleSaveMetal}
+              {...(editMetal ? { initialData: editMetal } : {})}
+            />
+          </>
+        )}
       </div>
     </div>
   );
