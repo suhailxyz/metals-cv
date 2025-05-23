@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { PlusCircle, TrendingUp, Coins, DollarSign } from 'lucide-react';
+import { PlusCircle, TrendingUp, Coins, DollarSign, Trash2, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AddMetalDialog from '@/components/AddMetalDialog';
 import PortfolioChart from '@/components/PortfolioChart';
 import MetalCard from '@/components/MetalCard';
 import { MetalItem, MarketPrices } from '@/types/metals';
-import { calculatePortfolioValue, mockMarketPrices } from '@/utils/metalCalculations';
+import { calculatePortfolioValue, mockMarketPrices, convertToOunces } from '@/utils/metalCalculations';
 
 const Index = () => {
   const [metals, setMetals] = useState<MetalItem[]>([
@@ -50,6 +50,7 @@ const Index = () => {
 
   const [marketPrices, setMarketPrices] = useState<MarketPrices>(mockMarketPrices);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [editMetal, setEditMetal] = useState<MetalItem | null>(null);
 
   // Simulate live price updates
   useEffect(() => {
@@ -77,6 +78,23 @@ const Index = () => {
 
   const handleDeleteMetal = (id: string) => {
     setMetals(prev => prev.filter(metal => metal.id !== id));
+  };
+
+  const handleEditMetal = (metal: MetalItem) => {
+    setEditMetal(metal);
+    setIsAddDialogOpen(true);
+  };
+
+  const handleSaveMetal = (metal: Omit<MetalItem, 'id'>) => {
+    if (editMetal) {
+      setMetals(prev => prev.map(m => m.id === editMetal.id ? { ...metal, id: editMetal.id } : m));
+      setEditMetal(null);
+      setIsAddDialogOpen(false);
+    } else {
+      const newMetal: MetalItem = { ...metal, id: Date.now().toString() };
+      setMetals(prev => [...prev, newMetal]);
+      setIsAddDialogOpen(false);
+    }
   };
 
   return (
@@ -179,36 +197,6 @@ const Index = () => {
           </Card>
         </div>
 
-        {/* Market Prices */}
-        <Card className="mb-8 shadow-lg border-0">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-amber-600" />
-              Live Market Prices (per Troy Ounce)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              <div className="text-center p-4 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-lg text-white">
-                <div className="text-sm font-medium opacity-90">Gold</div>
-                <div className="text-2xl font-bold">${marketPrices.gold.toFixed(2)}</div>
-              </div>
-              <div className="text-center p-4 bg-gradient-to-br from-gray-300 to-gray-400 rounded-lg text-white">
-                <div className="text-sm font-medium opacity-90">Silver</div>
-                <div className="text-2xl font-bold">${marketPrices.silver.toFixed(2)}</div>
-              </div>
-              <div className="text-center p-4 bg-gradient-to-br from-gray-600 to-gray-700 rounded-lg text-white">
-                <div className="text-sm font-medium opacity-90">Platinum</div>
-                <div className="text-2xl font-bold">${marketPrices.platinum.toFixed(2)}</div>
-              </div>
-              <div className="text-center p-4 bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg text-white">
-                <div className="text-sm font-medium opacity-90">Palladium</div>
-                <div className="text-2xl font-bold">${marketPrices.palladium.toFixed(2)}</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Portfolio Composition Chart */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           <PortfolioChart metals={metals} marketPrices={marketPrices} />
@@ -257,15 +245,64 @@ const Index = () => {
                 </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {metals.map((metal) => (
-                  <MetalCard
-                    key={metal.id}
-                    metal={metal}
-                    marketPrice={marketPrices[metal.type]}
-                    onDelete={handleDeleteMetal}
-                  />
-                ))}
+              <div className="overflow-x-auto">
+                <table className="min-w-full border-separate border-spacing-y-2">
+                  <thead>
+                    <tr className="bg-slate-100 text-gray-700 text-left">
+                      <th className="px-4 py-2 rounded-l-lg">Metal</th>
+                      <th className="px-4 py-2">Form</th>
+                      <th className="px-4 py-2">Description</th>
+                      <th className="px-4 py-2">Weight</th>
+                      <th className="px-4 py-2">Quantity</th>
+                      <th className="px-4 py-2">Purity</th>
+                      <th className="px-4 py-2">Purchase Date</th>
+                      <th className="px-4 py-2">Purchase Cost</th>
+                      <th className="px-4 py-2">Current Value</th>
+                      <th className="px-4 py-2">P&L</th>
+                      <th className="px-4 py-2 rounded-r-lg"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {metals.map((metal) => {
+                      const currentValue = calculatePortfolioValue([metal], marketPrices).totalValue;
+                      const purchaseCost = calculatePortfolioValue([metal], marketPrices).totalCost;
+                      const gainLoss = currentValue - purchaseCost;
+                      const gainLossPercent = purchaseCost !== 0 ? (gainLoss / purchaseCost) * 100 : 0;
+                      const weightInOz = metal.weightUnit === 'oz' ? metal.weight : convertToOunces(metal.weight, metal.weightUnit);
+                      const metalColors: Record<string, string> = {
+                        gold: 'bg-yellow-400',
+                        silver: 'bg-gray-400',
+                        platinum: 'bg-gray-600',
+                        palladium: 'bg-gray-800',
+                      };
+                      return (
+                        <tr key={metal.id} className="bg-white hover:bg-slate-50 transition rounded-lg shadow-sm">
+                          <td className="px-4 py-2 font-semibold capitalize flex items-center gap-2">
+                            <span className={`inline-block w-3 h-3 rounded-full ${metalColors[metal.type] || 'bg-gray-300'}`}></span>
+                            {metal.type}
+                          </td>
+                          <td className="px-4 py-2"><span className="inline-block bg-slate-100 rounded px-2 py-1 text-xs font-medium text-gray-700">{metal.form}</span></td>
+                          <td className="px-4 py-2 text-gray-600">{metal.description || '-'}</td>
+                          <td className="px-4 py-2">{metal.weight} {metal.weightUnit}<br /><span className="text-xs text-gray-400">({weightInOz.toFixed(3)} oz)</span></td>
+                          <td className="px-4 py-2">{metal.quantity}</td>
+                          <td className="px-4 py-2">{(metal.purity * 100).toFixed(2)}%</td>
+                          <td className="px-4 py-2">{new Date(metal.purchaseDate).toLocaleDateString()}</td>
+                          <td className="px-4 py-2">${purchaseCost.toLocaleString()}</td>
+                          <td className="px-4 py-2 font-bold">${currentValue.toLocaleString()}</td>
+                          <td className={`px-4 py-2 font-medium ${gainLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>{gainLoss >= 0 ? '+' : ''}${gainLoss.toLocaleString()} ({gainLossPercent.toFixed(2)}%)</td>
+                          <td className="px-4 py-2 flex gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => handleEditMetal(metal)}>
+                              <Pencil className="h-4 w-4 text-gray-400 hover:text-amber-600" />
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleDeleteMetal(metal.id)}>
+                              <Trash2 className="h-4 w-4 text-gray-400 hover:text-red-600" />
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </CardContent>
@@ -273,8 +310,9 @@ const Index = () => {
 
         <AddMetalDialog
           isOpen={isAddDialogOpen}
-          onClose={() => setIsAddDialogOpen(false)}
-          onAdd={handleAddMetal}
+          onClose={() => { setIsAddDialogOpen(false); setEditMetal(null); }}
+          onAdd={handleSaveMetal}
+          {...(editMetal ? { initialData: editMetal } : {})}
         />
       </div>
     </div>

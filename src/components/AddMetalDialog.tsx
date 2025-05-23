@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -12,9 +11,10 @@ interface AddMetalDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (metal: Omit<MetalItem, 'id'>) => void;
+  initialData?: Partial<MetalItem>;
 }
 
-const AddMetalDialog: React.FC<AddMetalDialogProps> = ({ isOpen, onClose, onAdd }) => {
+const AddMetalDialog: React.FC<AddMetalDialogProps> = ({ isOpen, onClose, onAdd, initialData }) => {
   const [formData, setFormData] = useState({
     type: '' as MetalType,
     form: '' as MetalForm,
@@ -26,6 +26,34 @@ const AddMetalDialog: React.FC<AddMetalDialogProps> = ({ isOpen, onClose, onAdd 
     purchaseDate: '',
     description: ''
   });
+
+  React.useEffect(() => {
+    if (isOpen && initialData) {
+      setFormData({
+        type: initialData.type || '' as MetalType,
+        form: initialData.form || '' as MetalForm,
+        weight: initialData.weight !== undefined ? String(initialData.weight) : '',
+        weightUnit: initialData.weightUnit || 'oz',
+        purity: initialData.purity !== undefined ? String(initialData.purity) : '',
+        quantity: initialData.quantity !== undefined ? String(initialData.quantity) : '1',
+        purchasePrice: initialData.purchasePrice !== undefined ? String(initialData.purchasePrice) : '',
+        purchaseDate: initialData.purchaseDate || '',
+        description: initialData.description || ''
+      });
+    } else if (isOpen && !initialData) {
+      setFormData({
+        type: '' as MetalType,
+        form: '' as MetalForm,
+        weight: '',
+        weightUnit: 'oz',
+        purity: '',
+        quantity: '1',
+        purchasePrice: '',
+        purchaseDate: '',
+        description: ''
+      });
+    }
+  }, [isOpen, initialData]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
