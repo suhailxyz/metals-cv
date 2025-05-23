@@ -133,18 +133,10 @@ const Index = () => {
           <div>
             <h1 className="text-4xl font-bold text-gray-900 mb-2 flex items-center gap-3">
               <Coins className="h-10 w-10 text-amber-600" />
-              Precious Metals Tracker
+              Stack Tracker
             </h1>
             <p className="text-lg text-gray-600">Track your precious metals portfolio with live market pricing</p>
           </div>
-          <Button
-            onClick={() => setIsAddDialogOpen(true)}
-            className="bg-amber-600 hover:bg-amber-700 text-white mt-4 md:mt-0"
-            size="lg"
-          >
-            <PlusCircle className="h-5 w-5 mr-2" />
-            Add Metal
-          </Button>
         </div>
 
         {/* Portfolio Overview Cards */}
@@ -197,37 +189,41 @@ const Index = () => {
           </Card>
         </div>
 
-        {/* Portfolio Composition Chart */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          <PortfolioChart metals={metals} marketPrices={marketPrices} />
-          
-          <Card className="shadow-lg border-0">
-            <CardHeader>
-              <CardTitle>Portfolio Breakdown</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {Object.entries(portfolioStats.byType).map(([type, data]) => (
-                  <div key={type} className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full ${
-                        type === 'gold' ? 'bg-yellow-500' :
-                        type === 'silver' ? 'bg-gray-400' :
-                        type === 'platinum' ? 'bg-gray-600' :
-                        'bg-gray-800'
-                      }`} />
-                      <span className="font-medium capitalize">{type}</span>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-bold">${data.value.toLocaleString()}</div>
-                      <div className="text-sm text-gray-500">{data.weight.toFixed(2)} oz</div>
-                    </div>
-                  </div>
-                ))}
+        {/* Portfolio Composition & Breakdown Combined */}
+        <Card className="shadow-lg border-0 mb-8">
+          <CardHeader>
+            <CardTitle>Portfolio Composition</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col lg:flex-row gap-8 items-center lg:items-start">
+              <div className="w-full lg:w-1/2 h-64">
+                <PortfolioChart metals={metals} marketPrices={marketPrices} />
               </div>
-            </CardContent>
-          </Card>
-        </div>
+              <div className="w-full lg:w-1/2">
+                <h2 className="text-xl font-bold mb-4">Breakdown</h2>
+                <div className="space-y-4">
+                  {Object.entries(portfolioStats.byType).map(([type, data]) => (
+                    <div key={type} className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${
+                          type === 'gold' ? 'bg-yellow-500' :
+                          type === 'silver' ? 'bg-gray-400' :
+                          type === 'platinum' ? 'bg-gray-600' :
+                          'bg-gray-800'
+                        }`} />
+                        <span className="font-medium capitalize">{type}</span>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold">${data.value.toLocaleString()}</div>
+                        <div className="text-sm text-gray-500">{data.weight.toFixed(2)} oz</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Inventory List */}
         <Card className="shadow-lg border-0">
@@ -235,6 +231,16 @@ const Index = () => {
             <CardTitle>Your Inventory</CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="mb-4">
+              <Button
+                onClick={() => setIsAddDialogOpen(true)}
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+                size="lg"
+              >
+                <PlusCircle className="h-5 w-5 mr-2" />
+                Add Metal
+              </Button>
+            </div>
             {metals.length === 0 ? (
               <div className="text-center py-12">
                 <Coins className="h-16 w-16 text-gray-300 mx-auto mb-4" />

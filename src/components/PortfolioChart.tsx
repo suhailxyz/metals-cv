@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, TooltipProps } from 'recharts';
 import { MetalItem, MarketPrices } from '@/types/metals';
 import { calculateItemValue } from '@/utils/metalCalculations';
 
@@ -29,6 +28,8 @@ const PortfolioChart: React.FC<PortfolioChartProps> = ({ metals, marketPrices })
     return acc;
   }, [] as Array<{ name: string; value: number; color: string }>);
 
+  const totalValue = chartData.reduce((sum, item) => sum + item.value, 0);
+
   function getMetalColor(type: string): string {
     switch (type) {
       case 'gold': return '#F59E0B';
@@ -39,7 +40,7 @@ const PortfolioChart: React.FC<PortfolioChartProps> = ({ metals, marketPrices })
     }
   }
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
     if (active && payload && payload.length) {
       const data = payload[0];
       return (
@@ -56,50 +57,42 @@ const PortfolioChart: React.FC<PortfolioChartProps> = ({ metals, marketPrices })
 
   if (chartData.length === 0) {
     return (
-      <Card className="shadow-lg border-0">
-        <CardHeader>
-          <CardTitle>Portfolio Composition</CardTitle>
-        </CardHeader>
-        <CardContent className="flex items-center justify-center h-64">
-          <p className="text-gray-500">No data to display</p>
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center h-64">
+        <p className="text-gray-500">No data to display</p>
+      </div>
     );
   }
 
   return (
-    <Card className="shadow-lg border-0">
-      <CardHeader>
-        <CardTitle>Portfolio Composition</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={chartData}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={100}
-                paddingAngle={5}
-                dataKey="value"
-              >
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-              <Legend 
-                verticalAlign="bottom" 
-                height={36}
-                formatter={(value) => <span className="capitalize">{value}</span>}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="h-64">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={chartData}
+            cx="50%"
+            cy="50%"
+            innerRadius={60}
+            outerRadius={100}
+            paddingAngle={5}
+            dataKey="value"
+          >
+            {chartData.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.color} />
+            ))}
+          </Pie>
+          <Tooltip content={<CustomTooltip />} />
+          <Legend 
+            verticalAlign="bottom" 
+            height={36}
+            formatter={(value) => {
+              const item = chartData.find(i => i.name === value);
+              const percent = item && totalValue > 0 ? ((item.value / totalValue) * 100).toFixed(1) : '0.0';
+              return <span className="capitalize">{value} <span className="text-gray-500">({percent}%)</span></span>;
+            }}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
   );
 };
 
