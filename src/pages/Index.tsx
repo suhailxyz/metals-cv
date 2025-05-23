@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { PlusCircle, TrendingUp, Coins, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -83,6 +82,34 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-amber-50/30">
       <div className="container mx-auto px-4 py-8">
+        {/* Live Market Prices Ticker */}
+        <div className="bg-gray-900 text-white py-2 px-4 rounded-lg mb-6 shadow-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1 text-xs text-gray-300">
+              <TrendingUp className="h-3 w-3" />
+              <span>Live Prices (per oz)</span>
+            </div>
+            <div className="flex items-center gap-6 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-yellow-400 font-medium">AU</span>
+                <span className="font-mono">${marketPrices.gold.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-gray-300 font-medium">AG</span>
+                <span className="font-mono">${marketPrices.silver.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-gray-400 font-medium">PT</span>
+                <span className="font-mono">${marketPrices.platinum.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500 font-medium">PD</span>
+                <span className="font-mono">${marketPrices.palladium.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
