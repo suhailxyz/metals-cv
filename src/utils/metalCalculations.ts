@@ -27,9 +27,9 @@ export const calculateItemValue = (item: MetalItem, marketPrice: number): number
   return pureWeight * marketPrice * item.quantity;
 };
 
-// Calculate total purchase cost of an item
+// Calculate total purchase cost of an item (including tax)
 export const calculateItemCost = (item: MetalItem): number => {
-  return item.purchasePrice * item.quantity;
+  return (item.purchasePrice * item.quantity) + (item.purchaseTax || 0);
 };
 
 // Calculate comprehensive portfolio statistics

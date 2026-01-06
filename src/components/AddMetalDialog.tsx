@@ -23,6 +23,7 @@ const AddMetalDialog: React.FC<AddMetalDialogProps> = ({ isOpen, onClose, onAdd,
     purity: '',
     quantity: '1',
     purchasePrice: '',
+    purchaseTax: '',
     purchaseDate: '',
     description: ''
   });
@@ -37,6 +38,7 @@ const AddMetalDialog: React.FC<AddMetalDialogProps> = ({ isOpen, onClose, onAdd,
         purity: initialData.purity !== undefined ? String(initialData.purity) : '',
         quantity: initialData.quantity !== undefined ? String(initialData.quantity) : '1',
         purchasePrice: initialData.purchasePrice !== undefined ? String(initialData.purchasePrice) : '',
+        purchaseTax: initialData.purchaseTax !== undefined ? String(initialData.purchaseTax) : '',
         purchaseDate: initialData.purchaseDate || '',
         description: initialData.description || ''
       });
@@ -49,6 +51,7 @@ const AddMetalDialog: React.FC<AddMetalDialogProps> = ({ isOpen, onClose, onAdd,
         purity: '',
         quantity: '1',
         purchasePrice: '',
+        purchaseTax: '',
         purchaseDate: '',
         description: ''
       });
@@ -66,6 +69,7 @@ const AddMetalDialog: React.FC<AddMetalDialogProps> = ({ isOpen, onClose, onAdd,
       purity: parseFloat(formData.purity),
       quantity: parseInt(formData.quantity),
       purchasePrice: parseFloat(formData.purchasePrice),
+      purchaseTax: parseFloat(formData.purchaseTax) || 0,
       purchaseDate: formData.purchaseDate,
       description: formData.description
     };
@@ -79,6 +83,7 @@ const AddMetalDialog: React.FC<AddMetalDialogProps> = ({ isOpen, onClose, onAdd,
       purity: '',
       quantity: '1',
       purchasePrice: '',
+      purchaseTax: '',
       purchaseDate: '',
       description: ''
     });
@@ -216,6 +221,19 @@ const AddMetalDialog: React.FC<AddMetalDialogProps> = ({ isOpen, onClose, onAdd,
                 required
               />
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="purchaseTax">Tax Paid (Optional)</Label>
+            <Input
+              id="purchaseTax"
+              type="number"
+              step="0.01"
+              min="0"
+              value={formData.purchaseTax}
+              onChange={(e) => updateFormData('purchaseTax', e.target.value)}
+              placeholder="0.00"
+            />
           </div>
 
           <div>

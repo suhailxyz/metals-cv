@@ -12,6 +12,7 @@ export interface MetalItem {
   purity: number; // 0-1 (e.g., 0.999 for 99.9% pure)
   quantity: number;
   purchasePrice: number; // price per unit when purchased
+  purchaseTax?: number; // total tax paid for the purchase
   purchaseDate: string;
   description?: string;
 }

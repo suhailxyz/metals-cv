@@ -15,9 +15,11 @@ interface MetalCardProps {
 
 const MetalCard: React.FC<MetalCardProps> = ({ metal, marketPrice, onDelete }) => {
   const currentValue = calculateItemValue(metal, marketPrice);
-  const purchaseCost = calculateItemCost(metal);
-  const gainLoss = currentValue - purchaseCost;
-  const gainLossPercent = (gainLoss / purchaseCost) * 100;
+  const purchaseCostOnly = metal.purchasePrice * metal.quantity;
+  const taxPaid = metal.purchaseTax || 0;
+  const totalCost = calculateItemCost(metal);
+  const gainLoss = currentValue - totalCost;
+  const gainLossPercent = (gainLoss / totalCost) * 100;
   const weightInOz = convertToOunces(metal.weight, metal.weightUnit);
 
   const getMetalColor = (type: string) => {
@@ -78,20 +80,30 @@ const MetalCard: React.FC<MetalCardProps> = ({ metal, marketPrice, onDelete }) =
           </div>
 
           <div className="border-t pt-3">
-            <div className="flex justify-between items-center mb-2">
+            <div className="flex justify-between items-center mb-1">
               <span className="text-sm text-gray-500">Purchase Cost:</span>
-              <span className="font-medium">${purchaseCost.toLocaleString()}</span>
+              <span className="font-medium">${purchaseCostOnly.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+            {taxPaid > 0 && (
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-sm text-gray-500">Tax:</span>
+                <span className="font-medium">${taxPaid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm text-gray-500 font-semibold">Total Cost:</span>
+              <span className="font-semibold">${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm text-gray-500">Current Value:</span>
-              <span className="font-bold text-lg">${currentValue.toLocaleString()}</span>
+              <span className="font-bold text-lg">${currentValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-500">P&L:</span>
               <div className={`flex items-center gap-1 ${gainLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {gainLoss >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                 <span className="font-medium">
-                  {gainLoss >= 0 ? '+' : ''}${gainLoss.toLocaleString()} ({gainLossPercent.toFixed(2)}%)
+                  {gainLoss >= 0 ? '+' : ''}${gainLoss.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({gainLossPercent.toFixed(2)}%)
                 </span>
               </div>
             </div>
