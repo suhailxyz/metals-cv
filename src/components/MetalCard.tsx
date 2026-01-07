@@ -100,7 +100,7 @@ const MetalCard: React.FC<MetalCardProps> = ({ metal, marketPrice, onDelete }) =
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-500">P&L:</span>
-              <div className={`flex items-center gap-1 ${gainLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <div className={`flex items-center gap-1 ${gainLoss >= 0 ? 'text-green-500 dark:text-green-400' : 'text-destructive'}`}>
                 {gainLoss >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                 <span className="font-medium">
                   {gainLoss >= 0 ? '+' : ''}${gainLoss.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({gainLossPercent.toFixed(2)}%)

@@ -98,7 +98,7 @@ const AddMetalDialog: React.FC<AddMetalDialogProps> = ({ isOpen, onClose, onAdd,
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Precious Metal</DialogTitle>
+          <DialogTitle>{initialData ? 'Edit Precious Metal' : 'Add Precious Metal'}</DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -253,10 +253,10 @@ const AddMetalDialog: React.FC<AddMetalDialogProps> = ({ isOpen, onClose, onAdd,
             </Button>
             <Button 
               type="submit" 
-              className="flex-1 bg-amber-600 hover:bg-amber-700"
+              className="flex-1"
               disabled={!formData.type || !formData.form || !formData.weight || !formData.purity || !formData.purchasePrice || !formData.purchaseDate}
             >
-              Add Metal
+              {initialData ? 'Save' : 'Add Metal'}
             </Button>
           </div>
         </form>

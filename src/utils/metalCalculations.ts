@@ -2,10 +2,10 @@
 import { MetalItem, MarketPrices, PortfolioStats, MetalType } from '@/types/metals';
 
 export const mockMarketPrices: MarketPrices = {
-  gold: 2015.50,
-  silver: 24.75,
-  platinum: 995.00,
-  palladium: 1245.00
+  gold: 4483.70,
+  silver: 79.48,
+  platinum: 2347.60,
+  palladium: 1774.70
 };
 
 // Convert weight to troy ounces
