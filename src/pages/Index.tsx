@@ -475,7 +475,7 @@ const Index = () => {
                   <span>metals.cv</span>
                 </h1>
                 <p className="text-muted-foreground flex items-center gap-2">
-                  a physical metals inventory utility
+                  A physical metals inventory utility.
                   <Link to="/data-privacy">
                     <Button
                       variant="ghost"

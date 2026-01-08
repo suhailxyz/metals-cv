@@ -114,7 +114,7 @@ const DataPrivacy = () => {
                 </div>
                 <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
                   <p className="text-blue-900 dark:text-blue-100 text-sm font-medium">
-                    💡 We recommend saving backups every time you update your inventory.
+                    💡 I recommend saving backups every time you update your inventory.
                   </p>
                 </div>
               </div>
