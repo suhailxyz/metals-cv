@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Shield, Save, FolderOpen, HardDrive, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, Shield, Save, FolderOpen, HardDrive, AlertTriangle, CheckCircle, XCircle, Github } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -120,6 +120,18 @@ const DataPrivacy = () => {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* GitHub Link */}
+        <div className="mt-8 pt-6 border-t border-border flex justify-center">
+          <a
+            href="https://github.com/suhailxyz/metals-cv"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Github className="h-5 w-5" />
+          </a>
         </div>
       </div>
     </div>

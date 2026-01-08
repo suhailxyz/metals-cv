@@ -12,34 +12,67 @@ import AddMetalDialog from '@/components/AddMetalDialog';
 import PortfolioChart from '@/components/PortfolioChart';
 import SettingsMenu from '@/components/SettingsMenu';
 import { MetalItem, MarketPrices } from '@/types/metals';
-import { calculatePortfolioValue, mockMarketPrices, convertToOunces } from '@/utils/metalCalculations';
+import { calculatePortfolioValue, convertToOunces } from '@/utils/metalCalculations';
 
+const CACHE_KEY = 'metals-price-cache';
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+interface PriceCache {
+  prices: MarketPrices;
+  timestamp: number;
+}
+
+async function fetchMetalRatesFromAPI(): Promise<MarketPrices | null> {
+  try {
 const METALS_DEV_API_KEY = import.meta.env.VITE_METALS_DEV_API_KEY;
+    if (!METALS_DEV_API_KEY) {
+      console.warn('[fetchMetalRatesFromAPI] No API key found');
+      return null;
+    }
 
-async function fetchMetalRates() {
   const url = `https://api.metals.dev/v1/latest?api_key=${METALS_DEV_API_KEY}&currency=USD&unit=toz`;
-  console.log('[fetchMetalRates] Fetching:', url);
+    console.log('[fetchMetalRatesFromAPI] Fetching from metals.dev API...');
   const response = await fetch(url, {
     headers: {
       'Accept': 'application/json',
     },
   });
   const result = await response.json();
-  console.log('[fetchMetalRates] Result:', result);
   
   // Check for API errors
   if (result.status === 'failure' || !result.metals) {
-    console.warn('[fetchMetalRates] API error or quota exhausted, using mock prices:', result.error_message || 'Unknown error');
-    // Return mock prices as fallback
-    return mockMarketPrices;
+      console.warn('[fetchMetalRatesFromAPI] API error:', result.error_message || 'Unknown error');
+      return null;
   }
   
-  return {
+    const prices: MarketPrices = {
     gold: result.metals.gold,
     silver: result.metals.silver,
     platinum: result.metals.platinum,
     palladium: result.metals.palladium,
   };
+    
+    console.log('[fetchMetalRatesFromAPI] Successfully fetched prices:', prices);
+    return prices;
+  } catch (error) {
+    console.error('[fetchMetalRatesFromAPI] Error:', error);
+    return null;
+  }
+}
+
+async function fetchMetalRates(): Promise<MarketPrices> {
+  // Always fetch fresh prices - no cache
+  // Use metals.dev API (APMEX is blocked by Cloudflare)
+  console.log('[fetchMetalRates] Fetching from metals.dev API...');
+  const apiPrices = await fetchMetalRatesFromAPI();
+  if (apiPrices) {
+    console.log('[fetchMetalRates] Successfully fetched prices:', apiPrices);
+    return apiPrices;
+  }
+  
+  // If API fails, throw an error
+  console.error('[fetchMetalRates] API failed');
+  throw new Error('Unable to fetch metal prices from API');
 }
 
 // Default initial metals data
@@ -118,7 +151,7 @@ const Index = () => {
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedMetal, setSelectedMetal] = useState<MetalItem | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // View state management
   const [viewMode, setViewMode] = useState<'cards' | 'table'>(() => {
     try {
@@ -171,7 +204,7 @@ const Index = () => {
       : <ArrowDown className="h-4 w-4 ml-1" />;
   };
 
-  // Simulate live price updates
+  // Fetch metal prices with caching
   useEffect(() => {
     const fetchAndSetPrices = async () => {
       try {
@@ -180,14 +213,17 @@ const Index = () => {
         setMarketPrices(rates);
         setIsLoadingPrices(false);
         console.log('[useEffect] Updated marketPrices:', rates);
-        setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+        setLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       } catch (e) {
         console.error('[useEffect] Failed to fetch metal rates', e);
         setIsLoadingPrices(false);
+        // Keep existing prices if fetch fails - don't clear them
+        // The UI will show the last known prices
       }
     };
     fetchAndSetPrices();
-    const interval = setInterval(fetchAndSetPrices, 300000); // 5 minutes
+    // Check every minute if we need to refresh (cache handles 5-minute expiration)
+    const interval = setInterval(fetchAndSetPrices, 60000); // 1 minute
     return () => clearInterval(interval);
   }, []);
 
@@ -387,7 +423,7 @@ const Index = () => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
               <div>
                 <h1 className="text-4xl font-bold text-foreground mb-2 flex items-center gap-3">
-                  <Coins className="h-8 w-8 text-primary" />
+                  <img src="/favicon.svg" alt="metals.cv" className="h-8 w-8" />
                   <span>metals.cv</span>
                 </h1>
                 <p className="text-muted-foreground flex items-center gap-2">
@@ -407,47 +443,47 @@ const Index = () => {
               
               {/* Right side: Live Prices */}
               <div className="flex flex-col items-end gap-3">
-                {/* Live Market Prices Ticker */}
+            {/* Live Market Prices Ticker */}
                 <Card className="w-full md:w-auto">
                 <CardContent className="pt-6">
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
                       <TrendingUp className="h-3 w-3" />
-                      <span>Live Prices{lastUpdated ? ` (last updated ${lastUpdated})` : ''}</span>
-                    </div>
-                    {isLoadingPrices || !marketPrices ? (
+              <span>Live Prices{lastUpdated ? ` (last updated ${lastUpdated})` : ''}</span>
+            </div>
+            {isLoadingPrices || !marketPrices ? (
                       <div className="flex items-center gap-2 text-sm animate-pulse text-muted-foreground">
-                        <span>Loading live prices...</span>
-                      </div>
-                    ) : (
+                <span>Loading live prices...</span>
+              </div>
+            ) : (
                       <div className="flex flex-wrap items-center gap-2">
                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border" style={{ backgroundColor: '#F59E0B20', borderColor: '#F59E0B' }}>
                           <span className="text-xs font-medium" style={{ color: '#F59E0B' }}>AU</span>
                           <span className="font-mono text-sm font-semibold" style={{ color: '#F59E0B' }}>${marketPrices.gold.toFixed(2)}</span>
-                        </div>
+                </div>
                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border" style={{ backgroundColor: '#94A3B820', borderColor: '#94A3B8' }}>
                           <span className="text-xs font-medium" style={{ color: '#94A3B8' }}>AG</span>
                           <span className="font-mono text-sm font-semibold" style={{ color: '#94A3B8' }}>${marketPrices.silver.toFixed(2)}</span>
-                        </div>
+                </div>
                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border" style={{ backgroundColor: '#64748B20', borderColor: '#64748B' }}>
                           <span className="text-xs font-medium" style={{ color: '#64748B' }}>PT</span>
                           <span className="font-mono text-sm font-semibold" style={{ color: '#64748B' }}>${marketPrices.platinum.toFixed(2)}</span>
-                        </div>
+                </div>
                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border" style={{ backgroundColor: '#47556920', borderColor: '#475569' }}>
                           <span className="text-xs font-medium" style={{ color: '#475569' }}>PD</span>
                           <span className="font-mono text-sm font-semibold" style={{ color: '#475569' }}>${marketPrices.palladium.toFixed(2)}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                </div>
+              </div>
+            )}
+          </div>
                 </CardContent>
               </Card>
               </div>
             </div>
 
             {/* Portfolio Overview Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              <Card>
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <Card className="col-span-2 md:col-span-1">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">Total Portfolio Value</CardTitle>
                 </CardHeader>
@@ -456,6 +492,20 @@ const Index = () => {
                   <div className="flex items-center text-sm text-green-500 dark:text-green-400">
                     <TrendingUp className="h-3 w-3 mr-1" />
                     <span>Live pricing</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="col-span-2 md:col-span-1">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Unrealized P&L</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-3xl font-bold mb-2 ${portfolioStats?.unrealizedPL >= 0 ? 'text-green-500 dark:text-green-400' : 'text-destructive'}`}>
+                    ${Math.abs(portfolioStats?.unrealizedPL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className={`text-sm font-medium ${portfolioStats?.unrealizedPL >= 0 ? 'text-green-500 dark:text-green-400' : 'text-destructive'}`}>
+                    {portfolioStats?.unrealizedPL >= 0 ? '+' : '-'}{((Math.abs(portfolioStats?.unrealizedPL) / portfolioStats?.totalCost) * 100).toFixed(2)}%
                   </div>
                 </CardContent>
               </Card>
@@ -477,20 +527,6 @@ const Index = () => {
                 <CardContent>
                   <div className="text-3xl font-bold mb-2">{portfolioStats?.totalWeight.toFixed(2)}</div>
                   <div className="text-sm text-muted-foreground">Troy ounces</div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Unrealized P&L</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className={`text-3xl font-bold mb-2 ${portfolioStats?.unrealizedPL >= 0 ? 'text-green-500 dark:text-green-400' : 'text-destructive'}`}>
-                    ${Math.abs(portfolioStats?.unrealizedPL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                  <div className={`text-sm font-medium ${portfolioStats?.unrealizedPL >= 0 ? 'text-green-500 dark:text-green-400' : 'text-destructive'}`}>
-                    {portfolioStats?.unrealizedPL >= 0 ? '+' : '-'}{((Math.abs(portfolioStats?.unrealizedPL) / portfolioStats?.totalCost) * 100).toFixed(2)}%
-                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -550,23 +586,31 @@ const Index = () => {
             {/* Inventory List */}
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <CardTitle>Your Inventory</CardTitle>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <CardTitle className="text-lg sm:text-xl">Inventory</CardTitle>
                 <Button
                   onClick={() => setIsAddDialogOpen(true)}
                       size="sm"
+                      className="sm:hidden"
+                    >
+                      <PlusCircle className="h-4 w-4" />
+                    </Button>
+                <Button
+                  onClick={() => setIsAddDialogOpen(true)}
+                      size="sm"
+                      className="hidden sm:flex"
                 >
                       <PlusCircle className="h-4 w-4 mr-2" />
                   Add Metal
                 </Button>
-                  </div>
-                  <div className="flex items-center gap-3">
+              </div>
+                  <div className="flex items-center gap-2">
                     <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'cards' | 'table')}>
-                      <ToggleGroupItem value="cards" aria-label="Card view">
+                      <ToggleGroupItem value="cards" aria-label="Card view" size="sm">
                         <LayoutGrid className="h-4 w-4" />
                       </ToggleGroupItem>
-                      <ToggleGroupItem value="table" aria-label="Table view">
+                      <ToggleGroupItem value="table" aria-label="Table view" size="sm">
                         <Table2 className="h-4 w-4" />
                       </ToggleGroupItem>
                     </ToggleGroup>
@@ -605,13 +649,13 @@ const Index = () => {
                         <Card key={metal.id} className="hover:shadow-lg transition-all duration-200">
                           <CardHeader className="pb-3">
                             <div className="flex items-start justify-between">
-                              <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2">
                                 <span className={`inline-block w-3 h-3 rounded-full ${dotColor}`}></span>
                                 <div>
                                   <CardTitle className="text-lg capitalize">{metal.type}</CardTitle>
                                   <p className="text-xs text-muted-foreground">Qty: {metal.quantity}</p>
-                                </div>
-                              </div>
+                            </div>
+                          </div>
                             <div className="flex items-center gap-2">
                                 <span className="text-xs px-2 py-1 rounded-md bg-muted text-muted-foreground font-medium capitalize">{metal.form}</span>
                                 <DropdownMenu>
@@ -661,14 +705,14 @@ const Index = () => {
 
                           {/* Details Grid */}
                             <div className="grid grid-cols-3 gap-2 text-xs border-t pt-3">
-                              <div>
+                            <div>
                                 <p className="text-muted-foreground mb-1 text-[10px]">Weight</p>
                                 <p className="font-medium">{metal.weight} {metal.weightUnit}</p>
-                              </div>
-                              <div>
+                            </div>
+                            <div>
                                 <p className="text-muted-foreground mb-1 text-[10px]">Purity</p>
                                 <p className="font-medium">{(metal.purity * 100).toFixed(2)}%</p>
-                              </div>
+                            </div>
                             <div>
                                 <p className="text-muted-foreground mb-1 text-[10px]">Date</p>
                                 <p className="font-medium">{new Date(metal.purchaseDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
@@ -684,20 +728,20 @@ const Index = () => {
                             <div>
                                 <p className="text-muted-foreground mb-1 text-[10px]">Total Weight</p>
                                 <p className="font-medium">{(weightInOz * metal.quantity).toFixed(2)} oz</p>
-                              </div>
                             </div>
+                          </div>
 
                             {/* Cost Breakdown */}
                             <div className="space-y-1 pt-2 border-t">
                               <div className="flex justify-between items-center">
                                 <span className="text-[10px] text-muted-foreground">Purchase Cost</span>
                                 <span className="text-[10px] font-medium">${purchaseCostOnly.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                              </div>
+                          </div>
                               {taxPaid > 0 && (
                                 <div className="flex justify-between items-center">
                                   <span className="text-[10px] text-muted-foreground">Tax</span>
                                   <span className="text-[10px] font-medium">${taxPaid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                          </div>
+                        </div>
                               )}
                               <div className="flex justify-between items-center">
                                 <span className="text-[10px] text-muted-foreground font-medium">Total Cost</span>
@@ -896,7 +940,7 @@ const Index = () => {
                                 <span className="px-2 py-0.5 rounded-md bg-muted text-muted-foreground font-medium capitalize text-xs">
                                   {selectedMetal.form}
                                 </span>
-                              </div>
+            </div>
                             </div>
                           </div>
                         </div>

@@ -25,3 +25,8 @@ dist-ssr
 
 # Test data
 test-data/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
