@@ -15,7 +15,7 @@ import { MetalItem, MarketPrices } from '@/types/metals';
 import { calculatePortfolioValue, convertToOunces } from '@/utils/metalCalculations';
 
 const CACHE_KEY = 'metals-price-cache';
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes in milliseconds
 
 interface PriceCache {
   prices: MarketPrices;
@@ -61,18 +61,66 @@ const METALS_DEV_API_KEY = import.meta.env.VITE_METALS_DEV_API_KEY;
 }
 
 async function fetchMetalRates(): Promise<MarketPrices> {
-  // Always fetch fresh prices - no cache
-  // Use metals.dev API (APMEX is blocked by Cloudflare)
+  // Check cache first
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const cache: PriceCache = JSON.parse(cached);
+      const now = Date.now();
+      const age = now - cache.timestamp;
+      const ageMinutes = Math.floor(age / 60000);
+      const ageSeconds = Math.floor((age % 60000) / 1000);
+      
+      // Check if cache is still valid (less than 10 minutes old)
+      if (age < CACHE_DURATION) {
+        console.log(`[fetchMetalRates] Using cached prices (age: ${ageMinutes}m ${ageSeconds}s old)`);
+        console.log('[fetchMetalRates] Cached prices:', cache.prices);
+        return cache.prices;
+      } else {
+        console.log(`[fetchMetalRates] Cache expired (age: ${ageMinutes}m ${ageSeconds}s, limit: 10m), fetching fresh prices...`);
+      }
+    } else {
+      console.log('[fetchMetalRates] No cache found, fetching from API...');
+    }
+  } catch (e) {
+    console.warn('[fetchMetalRates] Error reading cache:', e);
+    console.log('[fetchMetalRates] Fetching from API due to cache error...');
+  }
+
+  // Cache expired or doesn't exist, fetch from API
   console.log('[fetchMetalRates] Fetching from metals.dev API...');
   const apiPrices = await fetchMetalRatesFromAPI();
   if (apiPrices) {
-    console.log('[fetchMetalRates] Successfully fetched prices:', apiPrices);
+    // Cache the successfully fetched prices
+    const cache: PriceCache = {
+      prices: apiPrices,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    console.log('[fetchMetalRates] ✅ Successfully fetched and cached prices:', apiPrices);
+    console.log('[fetchMetalRates] Cache will be valid for 10 minutes');
     return apiPrices;
   }
   
-  // If API fails, throw an error
-  console.error('[fetchMetalRates] API failed');
-  throw new Error('Unable to fetch metal prices from API');
+  // API failed, try to use cached prices (even if expired) as fallback
+  console.warn('[fetchMetalRates] ⚠️ API failed, trying cached prices as fallback...');
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const cache: PriceCache = JSON.parse(cached);
+      const age = Date.now() - cache.timestamp;
+      const ageMinutes = Math.floor(age / 60000);
+      console.log(`[fetchMetalRates] ✅ Using expired cache as fallback (age: ${ageMinutes}m)`);
+      console.log('[fetchMetalRates] Fallback prices:', cache.prices);
+      return cache.prices;
+    }
+  } catch (e) {
+    console.warn('[fetchMetalRates] Error reading expired cache:', e);
+  }
+  
+  // If we have no cache at all, throw an error
+  console.error('[fetchMetalRates] ❌ API failed and no cache available');
+  throw new Error('Unable to fetch metal prices from API and no cache available');
 }
 
 // Default initial metals data
