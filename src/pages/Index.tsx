@@ -649,8 +649,7 @@ const Index = () => {
                       size="sm"
                       className="hidden sm:flex"
                 >
-                      <PlusCircle className="h-4 w-4 mr-2" />
-                  Add Metal
+                      <PlusCircle className="h-4 w-4" />
                 </Button>
               </div>
                   <div className="flex items-center gap-2">
