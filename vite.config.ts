@@ -5,7 +5,8 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  base: process.env.GITHUB_PAGES ? '/metals-cv/' : '/',
+  // Using '/' for custom domain (metals.cv) - GitHub Pages serves from root
+  base: '/',
   server: {
     host: "::",
     port: 8080,

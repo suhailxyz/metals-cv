@@ -471,7 +471,7 @@ const Index = () => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
               <div>
                 <h1 className="text-4xl font-bold text-foreground mb-2 flex items-center gap-3">
-                  <img src="/favicon.svg" alt="metals.cv" className="h-8 w-8" />
+                  <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="metals.cv" className="h-8 w-8" />
                   <span>metals.cv</span>
                 </h1>
                 <p className="text-muted-foreground flex items-center gap-2">
