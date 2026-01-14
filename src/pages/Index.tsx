@@ -118,9 +118,16 @@ async function fetchMetalRates(): Promise<MarketPrices> {
     console.warn('[fetchMetalRates] Error reading expired cache:', e);
   }
   
-  // If we have no cache at all, throw an error
-  console.error('[fetchMetalRates] ❌ API failed and no cache available');
-  throw new Error('Unable to fetch metal prices from API and no cache available');
+  // If we have no cache at all, use fallback prices
+  console.warn('[fetchMetalRates] ⚠️ API failed and no cache available, using fallback prices');
+  const fallbackPrices: MarketPrices = {
+    gold: 4640.00,
+    silver: 93.50,
+    platinum: 2408.20,
+    palladium: 1855.00
+  };
+  console.log('[fetchMetalRates] Using fallback prices:', fallbackPrices);
+  return fallbackPrices;
 }
 
 // Default initial metals data

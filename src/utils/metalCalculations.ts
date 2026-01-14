@@ -1,13 +1,6 @@
 
 import { MetalItem, MarketPrices, PortfolioStats, MetalType } from '@/types/metals';
 
-export const mockMarketPrices: MarketPrices = {
-  gold: 4483.70,
-  silver: 79.48,
-  platinum: 2347.60,
-  palladium: 1774.70
-};
-
 // Convert weight to troy ounces
 export const convertToOunces = (weight: number, unit: string): number => {
   switch (unit) {
